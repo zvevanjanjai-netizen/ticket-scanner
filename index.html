@@ -1,14 +1,23 @@
 <!DOCTYPE html>
 <html>
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Event Ticket Scanner</title>
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
 
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <title>
+    Event Ticket Scanner
+  </title>
+
+  <script
+    src="https://unpkg.com/html5-qrcode">
+  </script>
 
   <style>
+
     body {
       font-family: Arial, sans-serif;
       background: #f3f4f6;
@@ -25,7 +34,9 @@
       background: white;
       border-radius: 18px;
       padding: 20px;
-      box-shadow: 0 5px 20px rgba(0,0,0,.12);
+      box-shadow:
+        0 5px 20px
+        rgba(0,0,0,.12);
       text-align: center;
     }
 
@@ -45,20 +56,8 @@
       margin: 20px 0;
     }
 
-    .valid {
-      color: green;
-    }
-
     .invalid {
       color: red;
-    }
-
-    .used {
-      color: #d84315;
-    }
-
-    .payment {
-      color: #ef6c00;
     }
 
     .details {
@@ -83,378 +82,162 @@
       cursor: pointer;
     }
 
-    button:disabled {
-      background: #999;
-    }
-
     .small {
       color: #666;
       font-size: 13px;
       margin-top: 12px;
     }
+
   </style>
+
 </head>
 
 <body>
 
 <div class="container">
+
   <div class="card">
 
-    <h1>TICKET SCANNER</h1>
+    <h1>
+      TICKET SCANNER
+    </h1>
 
     <div id="reader"></div>
 
     <div id="result">
+
       <div class="small">
-        Point the camera at a ticket QR code.
+        Point the camera
+        at a ticket QR code.
       </div>
+
     </div>
 
   </div>
+
 </div>
 
 <script>
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzN3orFF4Rt50ACViw4rHaArj-NDP1DeL0tc3Ba6vzcKxQJv_d-dqFHJUEFe0ylCtyrFw/exec";
+const APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbzN3orFF4Rt50ACViw4rHaArj-NDP1DeL0tc3Ba6vzcKxQJv_d-dqFHJUEFe0ylCtyrFw/exec";
 
 let scanner;
-let currentToken = "";
-let scanningLocked = false;
+
+let scanningLocked =
+  false;
+
 
 function startScanner() {
 
-  scanner = new Html5Qrcode("reader");
+  scanner =
+    new Html5Qrcode(
+      "reader"
+    );
 
-  Html5Qrcode.getCameras()
+  Html5Qrcode
+    .getCameras()
     .then(cameras => {
 
-      if (!cameras || cameras.length === 0) {
-        showError("No camera found.");
+      if (
+        !cameras ||
+        cameras.length === 0
+      ) {
+
+        showError(
+          "No camera found."
+        );
+
         return;
       }
 
-      let cameraId = cameras[0].id;
+      let cameraId =
+        cameras[0].id;
 
-      if (cameras.length > 1) {
-        cameraId = cameras[cameras.length - 1].id;
+      if (
+        cameras.length > 1
+      ) {
+
+        cameraId =
+          cameras[
+            cameras.length - 1
+          ].id;
       }
 
       scanner.start(
+
         cameraId,
+
         {
           fps: 10,
+
           qrbox: {
             width: 250,
             height: 250
           }
         },
+
         onScanSuccess,
+
         function() {}
+
       );
 
     })
+
     .catch(err => {
-      showError("Camera access failed: " + err);
+
+      showError(
+        "Camera access failed: " +
+        err
+      );
+
     });
 }
 
-function onScanSuccess(decodedText) {
 
-  if (scanningLocked) {
+function onScanSuccess(
+  decodedText
+) {
+
+  if (
+    scanningLocked
+  ) {
     return;
   }
 
-  scanningLocked = true;
+  scanningLocked =
+    true;
 
-  currentToken =
+  const token =
     decodedText.trim();
 
   try {
+
     scanner.pause(true);
+
   } catch (e) {}
 
 
   window.location.href =
     APPS_SCRIPT_URL +
     "?page=verify&ticket=" +
-    encodeURIComponent(currentToken);
-}
-
-function verifyTicket(token) {
-
-  document.getElementById("result").innerHTML = `
-    <div class="small">
-      Checking ticket...
-    </div>
-  `;
-
-  jsonpRequest(
-    "verify",
-    token,
-    function(data) {
-      displayTicket(data);
-    }
-  );
-}
-
-function displayTicket(data) {
-
-  if (!data.success) {
-
-    document.getElementById("result").innerHTML = `
-      <div class="status invalid">
-        ✕ INVALID TICKET
-      </div>
-
-      <div class="details">
-        ${data.message || "Ticket not found."}
-      </div>
-
-      <button onclick="scanNext()">
-        SCAN NEXT TICKET
-      </button>
-    `;
-
-    return;
-  }
-
-  if (data.status === "CHECKED IN") {
-
-    document.getElementById("result").innerHTML = `
-      <div class="status used">
-        TICKET ALREADY USED
-      </div>
-
-      <div class="details">
-        <strong>Ticket:</strong>
-        ${data.ticketNo}<br>
-
-        <strong>Name:</strong>
-        ${data.firstName} ${data.surname}<br>
-
-        <strong>Ticket Type:</strong>
-        ${data.ticketType}<br>
-
-        <strong>Check-In:</strong>
-        ${data.checkInTime || ""}
-      </div>
-
-      <button onclick="scanNext()">
-        SCAN NEXT TICKET
-      </button>
-    `;
-
-    return;
-  }
-
-  if (data.paymentStatus !== "PAID") {
-
-    document.getElementById("result").innerHTML = `
-      <div class="status payment">
-        PAYMENT NOT CONFIRMED
-      </div>
-
-      <div class="details">
-        <strong>Ticket:</strong>
-        ${data.ticketNo}<br>
-
-        <strong>Name:</strong>
-        ${data.firstName} ${data.surname}<br>
-
-        <strong>Ticket Type:</strong>
-        ${data.ticketType}
-      </div>
-
-      <button onclick="scanNext()">
-        SCAN NEXT TICKET
-      </button>
-    `;
-
-    return;
-  }
-
-  document.getElementById("result").innerHTML = `
-    <div class="status valid">
-      ✓ VALID TICKET
-    </div>
-
-    <div class="details">
-      <strong>Ticket:</strong>
-      ${data.ticketNo}<br>
-
-      <strong>Name:</strong>
-      ${data.firstName} ${data.surname}<br>
-
-      <strong>Ticket Type:</strong>
-      ${data.ticketType}
-    </div>
-
-    <button id="checkInButton"
-            onclick="checkInTicket()">
-      CHECK IN
-    </button>
-
-    <button onclick="scanNext()">
-      CANCEL / SCAN NEXT
-    </button>
-  `;
-}
-
-async function checkInTicket() {
-
-  const button =
-    document.getElementById("checkInButton");
-
-  button.disabled = true;
-  button.innerText = "CHECKING IN...";
-
-  jsonpRequest(
-    "checkin",
-    currentToken,
-    function(data) {
-
-      if (data.success) {
-
-        document.getElementById("result").innerHTML = `
-          <div class="status valid">
-            ✓ CHECK-IN APPROVED
-          </div>
-
-          <div class="details">
-
-            <strong>Ticket:</strong>
-            ${data.ticketNo}<br>
-
-            <strong>Name:</strong>
-            ${data.firstName} ${data.surname}<br>
-
-            <strong>Ticket Type:</strong>
-            ${data.ticketType}<br>
-
-            <strong>Time:</strong>
-            ${data.checkInTime || ""}
-
-          </div>
-
-          <button onclick="scanNext()">
-            SCAN NEXT TICKET
-          </button>
-        `;
-
-      } else {
-
-        displayTicket(data);
-
-      }
-
-    }
-  );
-}
-function jsonpRequest(action, token, callback) {
-
-  const callbackName =
-    "ticketCallback_" +
-    Date.now() +
-    "_" +
-    Math.floor(Math.random() * 100000);
-
-  const script =
-    document.createElement("script");
-
-  let finished = false;
-
-  const timeout = setTimeout(function() {
-
-    if (!finished) {
-
-      finished = true;
-
-      cleanup();
-
-      showError(
-        "The ticket system did not respond. Check your internet connection."
-      );
-
-    }
-
-  }, 15000);
-
-
-  function cleanup() {
-
-    clearTimeout(timeout);
-
-    try {
-      delete window[callbackName];
-    } catch (e) {}
-
-    if (script.parentNode) {
-      script.parentNode.removeChild(script);
-    }
-  }
-
-
-  window[callbackName] = function(data) {
-
-    if (finished) return;
-
-    finished = true;
-
-    cleanup();
-
-    callback(data);
-  };
-
-
-  script.onerror = function() {
-
-    if (finished) return;
-
-    finished = true;
-
-    cleanup();
-
-    showError(
-      "Could not connect to the ticket database."
+    encodeURIComponent(
+      token
     );
-  };
-
-
-  script.src =
-    APPS_SCRIPT_URL +
-    "?action=" +
-    encodeURIComponent(action) +
-    "&ticket=" +
-    encodeURIComponent(token) +
-    "&callback=" +
-    encodeURIComponent(callbackName) +
-    "&t=" +
-    Date.now();
-
-
-  document.body.appendChild(script);
-}
-function scanNext() {
-
-  currentToken = "";
-  scanningLocked = false;
-
-  document.getElementById("result").innerHTML = `
-    <div class="small">
-      Point the camera at the next ticket QR code.
-    </div>
-  `;
-
-  try {
-    scanner.resume();
-  } catch (e) {
-    location.reload();
-  }
 }
 
-function showError(message) {
 
-  document.getElementById("result").innerHTML = `
+function showError(
+  message
+) {
+
+  document
+    .getElementById(
+      "result"
+    )
+    .innerHTML = `
+
     <div class="status invalid">
       ERROR
     </div>
@@ -463,15 +246,21 @@ function showError(message) {
       ${message}
     </div>
 
-    <button onclick="location.reload()">
+    <button
+      onclick="location.reload()">
+
       TRY AGAIN
+
     </button>
+
   `;
 }
+
 
 startScanner();
 
 </script>
 
 </body>
+
 </html>
