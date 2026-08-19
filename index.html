@@ -160,16 +160,24 @@ function startScanner() {
 
 function onScanSuccess(decodedText) {
 
-  if (scanningLocked) return;
+  if (scanningLocked) {
+    return;
+  }
 
   scanningLocked = true;
-  currentToken = decodedText.trim();
+
+  currentToken =
+    decodedText.trim();
 
   try {
     scanner.pause(true);
   } catch (e) {}
 
-  verifyTicket(currentToken);
+
+  window.location.href =
+    APPS_SCRIPT_URL +
+    "?page=verify&ticket=" +
+    encodeURIComponent(currentToken);
 }
 
 function verifyTicket(token) {
